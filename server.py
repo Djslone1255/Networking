@@ -3,7 +3,7 @@ import socket
 HEADERSIZE = 10
 IP = "127.0.0.1"
 PORT = 7765
-BOARDSIZE = 5
+BOARDSIZE = 3
 LENGTH = 3
 MAXPLAYERS = 2
 
@@ -49,7 +49,7 @@ class Square():
                 break
             elif(board.getSquare(self.x-i, self.y+i).value != self.value):
                 break
-            if(i == LENGTH):
+            if(i + 1 == LENGTH):
                 win = True
             i += 1
         return win
@@ -63,10 +63,10 @@ class Board():
             sq = Square((i % boardSize), int(i / boardSize), '0')
             self.board.append(sq)
     def getSquare(self, x, y):
-        return self.board[x*self.boardSize + y]
+        return self.board[x + int(y*self.boardSize)]
     def clearboard(self):
         for x in self.board:
-            self.board[x].value = '0'
+            x.value = '0'
     def displayBoard(self):
         display = " "
         number = 0
@@ -78,18 +78,21 @@ class Board():
         for line in range(self.boardSize):
             display += f'{number}'
             for col in range(self.boardSize):
-                display += self.getSquare(line, col).value
+                display += self.getSquare(col, line).value
             display += "\n"
-        number += 1
+            number += 1
         return display
 
 
 def recive_cmd(client_socket):
-    msg_header = client_socket.recv(HEADERSIZE)
+    try:
+        msg_header = client_socket.recv(HEADERSIZE)
         
-    msg_leng = int(msg_header.decode("utf-8").strip())
-    msg = client_socket.recv(msg_leng).decode("utf-8")
-    return msg
+        msg_leng = int(msg_header.decode("utf-8").strip())
+        msg = client_socket.recv(msg_leng).decode("utf-8")
+        return msg
+    except:
+        return False
 
 def gameMove(cmd, board, player):
     try:
@@ -109,15 +112,7 @@ def gameMove(cmd, board, player):
         msg = board.displayBoard()
     for element in board.board:
         if element.findWin(b, player):
-            """msg += "player " + f'{player}' + " wins"
-            msg = f'{len(msg):<{HEADERSIZE}}'+ msg
-            print(msg)
-            msg = f'{len(msg):<{HEADERSIZE}}'+ msg
-            clientsocket.send(bytes(msg, "utf-8"))"""
             return 2
-    #print(msg)
-    #msg = f'{len(msg):<{HEADERSIZE}}'+ msg
-    #clientsocket.send(bytes(msg, "utf-8"))
     return 1
 
         
@@ -131,9 +126,6 @@ s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind((IP, PORT))
 s.listen(5)
 
-#sockets_list = [s]
-
-#clients = {}
 print("server runnin")
 
 while True:
@@ -163,7 +155,7 @@ while True:
                 if over == 2:
 
                     msg = b.displayBoard()
-                    msg += "player " + f'{player}' + " wins\n"
+                    msg += "player X wins\n"
                     b.clearboard()
                     msg += b.displayBoard()
                     cmsg = msg
@@ -192,10 +184,14 @@ while True:
         turn = True
         while turn:
             cmd = recive_cmd(clientsocket)
+            if not cmd:
+                print("client disconected")
+                game = False
+                break
             over = gameMove(cmd, b, "O")
             if over == 2:
                 msg = b.displayBoard()
-                msg += "player " + f'{player}' + " wins\n"
+                msg += "player O wins\n"
                 b.clearboard()
                 msg += b.displayBoard()
                 cmsg = msg
